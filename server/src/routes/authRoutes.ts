@@ -7,9 +7,13 @@ import {
     addStudentsBulk 
 } from '../controllers/authController';
 import User from '../models/User';
+import { updateUserProfile } from '../controllers/authController'; // <--- Import this
 
+// ... existing routes ...
+// <--- Add this line
 const router = express.Router();
 
+router.put('/update-profile', updateUserProfile); 
 // --- PUBLIC AUTH ROUTES ---
 router.post('/register', registerUser);
 router.post('/login', loginUser);

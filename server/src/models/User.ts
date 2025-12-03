@@ -6,8 +6,13 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: 'student' | 'company' | 'college' | 'admin';
-  collegeId?: mongoose.Types.ObjectId; // Link student to college
-  isFirstLogin: boolean; // <--- NEW FLAG
+  collegeId?: mongoose.Types.ObjectId;
+  isFirstLogin: boolean;
+  // NEW FIELDS
+  branch?: string;
+  cgpa?: string;
+  phone?: string;
+  skills?: string;
   matchPassword: (enteredPassword: string) => Promise<boolean>;
 }
 
@@ -21,8 +26,14 @@ const UserSchema: Schema = new Schema(
       enum: ['student', 'company', 'college', 'admin'], 
       required: true 
     },
-    collegeId: { type: Schema.Types.ObjectId, ref: 'User' }, // Reference to College
-    isFirstLogin: { type: Boolean, default: false }, // Default is false for normal users
+    collegeId: { type: Schema.Types.ObjectId, ref: 'User' },
+    isFirstLogin: { type: Boolean, default: false },
+    
+    // NEW FIELDS FOR STUDENT PROFILE
+    branch: { type: String, default: "" },
+    cgpa: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    skills: { type: String, default: "" },
   },
   { timestamps: true }
 );
