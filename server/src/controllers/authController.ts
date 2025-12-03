@@ -121,3 +121,42 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         res.status(500).json({ message: error.message });
     }
 }
+// @desc    Bulk Add Students
+// @route   POST /api/auth/add-students-bulk
+export const addStudentsBulk = async (req: Request, res: Response): Promise<void> => {
+  const { students, collegeId } = req.body; // Expecting an Array of students
+
+  try {
+    let successCount = 0;
+    let failedCount = 0;
+
+    // Loop through each student and try to add them
+    for (const student of students) {
+      const { name, email, branch, cgpa } = student;
+
+      // Check if user exists
+      const userExists = await User.findOne({ email });
+      if (!userExists) {
+        await User.create({
+          name,
+          email,
+          password: 'welcome123', // Default Password
+          role: 'student',
+          collegeId,
+          isFirstLogin: true,
+          // You could save branch/cgpa to a StudentProfile model here if needed
+        });
+        successCount++;
+      } else {
+        failedCount++;
+      }
+    }
+
+    res.status(201).json({ 
+      message: `Process Complete. Added: ${successCount}, Skipped (Duplicate): ${failedCount}` 
+    });
+
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};

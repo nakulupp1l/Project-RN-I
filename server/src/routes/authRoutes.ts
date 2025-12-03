@@ -1,26 +1,33 @@
 import express from 'express';
-import { registerUser, loginUser } from '../controllers/authController';
-import User from '../models/User'; // Import User model
+import { 
+    registerUser, 
+    loginUser, 
+    addStudentByCollege, 
+    changePassword, 
+    addStudentsBulk 
+} from '../controllers/authController';
+import User from '../models/User';
 
 const router = express.Router();
 
+// --- PUBLIC AUTH ROUTES ---
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 
-// NEW ROUTE: Get all users who are 'colleges'
+// --- UTILITY ROUTES ---
+// Get list of colleges for the dropdown
 router.get('/colleges', async (req, res) => {
   try {
-    // Find all users where role is 'college'
-    // We only need their _id and name for the dropdown
     const colleges = await User.find({ role: 'college' }).select('name _id');
     res.json(colleges);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching colleges' });
   }
 });
-// Add these lines before "export default router;"
-import { addStudentByCollege, changePassword } from '../controllers/authController';
 
-router.post('/add-student', addStudentByCollege);
-router.put('/change-password', changePassword);
+// --- ONBOARDING ROUTES ---
+router.post('/add-student', addStudentByCollege);       // Manual Add
+router.post('/add-students-bulk', addStudentsBulk);     // Bulk Excel Add
+router.put('/change-password', changePassword);         // Force Password Change
+
 export default router;
