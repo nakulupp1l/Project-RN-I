@@ -18,5 +18,9 @@ router.get('/colleges', async (req, res) => {
     res.status(500).json({ message: 'Error fetching colleges' });
   }
 });
+// Add these lines before "export default router;"
+import { addStudentByCollege, changePassword } from '../controllers/authController';
 
+router.post('/add-student', addStudentByCollege);
+router.put('/change-password', changePassword);
 export default router;

@@ -59,6 +59,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         name: user.name,
         email: user.email,
         role: user.role,
+        isFirstLogin: user.isFirstLogin,
         token: generateToken((user._id as unknown) as string),
       });
     } else {
@@ -68,3 +69,55 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    College adds a student manually
+// @route   POST /api/auth/add-student
+export const addStudentByCollege = async (req: Request, res: Response): Promise<void> => {
+  const { name, email, branch, cgpa, collegeId } = req.body;
+
+  try {
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      res.status(400).json({ message: 'Student email already exists' });
+      return;
+    }
+
+    // Create User with DEFAULT PASSWORD 'welcome123'
+    const user = await User.create({
+      name,
+      email,
+      password: 'welcome123', // <--- Default Password
+      role: 'student',
+      collegeId,
+      isFirstLogin: true // <--- Force them to change it later
+    });
+
+    // OPTIONAL: You could also create the StudentProfile here with CGPA/Branch data
+    // For MVP, we just create the User account.
+
+    res.status(201).json({ message: "Student added successfully", user });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Change Password (for First Time Login)
+// @route   PUT /api/auth/change-password
+export const changePassword = async (req: Request, res: Response): Promise<void> => {
+    const { email, newPassword } = req.body;
+    try {
+        const user = await User.findOne({ email });
+        if(!user) {
+             res.status(404).json({ message: "User not found" });
+             return;
+        }
+        
+        user.password = newPassword;
+        user.isFirstLogin = false; // <--- Mark as active
+        await user.save();
+        
+        res.json({ message: "Password updated successfully. Please login." });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+}
