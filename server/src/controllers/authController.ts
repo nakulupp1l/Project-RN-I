@@ -54,13 +54,18 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
+      // LOGIC: Determine which College Dashboard to load
+      // If I am 'college', load my own data.
+      // If I am 'college_member' (Staff), load my boss's data (stored in user.collegeId)
+      const targetCollegeId = user.role === 'college' ? user._id : user.collegeId;
+
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
+        collegeId: targetCollegeId, // <--- THIS IS THE KEY UPDATE
         isFirstLogin: user.isFirstLogin,
-        // Send extra profile data to frontend
         branch: user.branch,
         cgpa: user.cgpa,
         phone: user.phone,
@@ -234,6 +239,47 @@ export const deleteStudent = async (req: Request, res: Response): Promise<void> 
     try {
         await User.findByIdAndDelete(req.params.id);
         res.json({ message: "Student removed" });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+}
+// @desc    Add a College Staff Member
+// @route   POST /api/auth/add-staff
+export const addCollegeStaff = async (req: Request, res: Response): Promise<void> => {
+  const { name, email, collegeId } = req.body;
+
+  try {
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      res.status(400).json({ message: 'Email already in use' });
+      return;
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password: 'staff123', // Default password
+      role: 'college_member',
+      collegeId, // Links them to the main college
+      isFirstLogin: true
+    });
+
+    res.status(201).json({ message: "Staff member added", user });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get Team Members
+// @route   GET /api/auth/team/:collegeId
+export const getTeamMembers = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // Find users who are 'college_member' and linked to this college
+        const team = await User.find({ 
+            collegeId: req.params.collegeId, 
+            role: 'college_member' 
+        }).select('-password');
+        res.json(team);
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }

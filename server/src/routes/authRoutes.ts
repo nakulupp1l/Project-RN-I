@@ -10,7 +10,7 @@ import {
 } from '../controllers/authController';
 import User from '../models/User';
 import { updateUserProfile } from '../controllers/authController'; // <--- Import this
-
+import { addCollegeStaff, getTeamMembers } from '../controllers/authController';
 // ... existing routes ...
 // <--- Add this line
 const router = express.Router();
@@ -20,7 +20,8 @@ router.put('/update-profile', updateUserProfile);
 // --- PUBLIC AUTH ROUTES ---
 router.post('/register', registerUser);
 router.post('/login', loginUser);
-
+router.post('/add-staff', addCollegeStaff);
+router.get('/team/:collegeId', getTeamMembers);
 // --- UTILITY ROUTES ---
 // Get list of colleges for the dropdown
 router.get('/colleges', async (req, res) => {

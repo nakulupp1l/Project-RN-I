@@ -23,7 +23,7 @@ const UserSchema: Schema = new Schema(
     password: { type: String, required: true },
     role: { 
       type: String, 
-      enum: ['student', 'company', 'college', 'admin'], 
+      enum: ['student', 'company', 'college', 'admin','college_member'], 
       required: true 
     },
     collegeId: { type: Schema.Types.ObjectId, ref: 'User' },
