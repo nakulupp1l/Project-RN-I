@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import User from '../models/User';
+import User, { IUser } from '../models/User';
 import jwt from 'jsonwebtoken';
 
 const generateToken = (id: string) => {
@@ -21,13 +21,15 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role,
-      collegeId // Save college association if provided
-    });
+    // FIX 1: Handle Empty College ID (Prevents CastError)
+    const userData: any = { name, email, password, role };
+    if (collegeId && typeof collegeId === 'string' && collegeId.trim() !== "") {
+        userData.collegeId = collegeId;
+    }
+
+    // FIX 2: Use new User() + save() (Prevents TypeScript Array Error)
+    const user = new User(userData);
+    await user.save();
 
     if (user) {
       res.status(201).json({
@@ -54,9 +56,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
-      // LOGIC: Determine which College Dashboard to load
-      // If I am 'college', load my own data.
-      // If I am 'college_member' (Staff), load my boss's data (stored in user.collegeId)
+      // Determine which College Dashboard to load
       const targetCollegeId = user.role === 'college' ? user._id : user.collegeId;
 
       res.json({
@@ -64,7 +64,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         name: user.name,
         email: user.email,
         role: user.role,
-        collegeId: targetCollegeId, // <--- THIS IS THE KEY UPDATE
+        collegeId: targetCollegeId, 
         isFirstLogin: user.isFirstLogin,
         branch: user.branch,
         cgpa: user.cgpa,
@@ -92,15 +92,13 @@ export const addStudentByCollege = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Create User with DEFAULT PASSWORD 'welcome123'
     const user = await User.create({
       name,
       email,
-      password: 'welcome123', // Default Password
+      password: 'welcome123',
       role: 'student',
       collegeId,
       isFirstLogin: true,
-      // Save profile details
       branch: branch || "",
       cgpa: cgpa || "",
       phone: phone || ""
@@ -124,7 +122,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         }
         
         user.password = newPassword;
-        user.isFirstLogin = false; // Mark as active
+        user.isFirstLogin = false;
         await user.save();
         
         res.json({ message: "Password updated successfully. Please login." });
@@ -133,7 +131,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     }
 }
 
-// @desc    Bulk Add Students via Excel (Case Insensitive)
+// @desc    Bulk Add Students via Excel
 // @route   POST /api/auth/add-students-bulk
 export const addStudentsBulk = async (req: Request, res: Response): Promise<void> => {
   const { students, collegeId } = req.body;
@@ -143,18 +141,16 @@ export const addStudentsBulk = async (req: Request, res: Response): Promise<void
     let failedCount = 0;
 
     for (const rawStudent of students) {
-      // 1. Normalize Keys: Convert "Branch" -> "branch", "Email" -> "email"
       const student: any = {};
       Object.keys(rawStudent).forEach((key) => {
         student[key.toLowerCase().trim()] = rawStudent[key];
       });
 
-      // 2. Destructure (Now it works even if Excel had "Branch" or "CGPA")
       const { name, email, branch, cgpa, phone } = student;
 
       if (!email || !name) {
          failedCount++;
-         continue; // Skip invalid rows
+         continue; 
       }
 
       const userExists = await User.findOne({ email });
@@ -166,9 +162,8 @@ export const addStudentsBulk = async (req: Request, res: Response): Promise<void
           role: 'student',
           collegeId,
           isFirstLogin: true,
-          // Save normalized data
           branch: branch || "", 
-          cgpa: typeof cgpa === 'number' ? cgpa.toString() : (cgpa || ""), // Handle number/string differences
+          cgpa: typeof cgpa === 'number' ? cgpa.toString() : (cgpa || ""),
           phone: phone || ""
         });
         successCount++;
@@ -185,6 +180,7 @@ export const addStudentsBulk = async (req: Request, res: Response): Promise<void
     res.status(500).json({ message: error.message });
   }
 };
+
 // @desc    Update User Profile
 // @route   PUT /api/auth/update-profile
 export const updateUserProfile = async (req: Request, res: Response): Promise<void> => {
@@ -211,7 +207,8 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
         cgpa: updatedUser.cgpa,
         phone: updatedUser.phone,
         skills: updatedUser.skills,
-        token: req.headers.authorization?.split(" ")[1] // Keep existing token
+        collegeId: updatedUser.role === 'college' ? updatedUser._id : updatedUser.collegeId,
+        token: req.headers.authorization?.split(" ")[1] 
       });
     } else {
       res.status(404).json({ message: 'User not found' });
@@ -220,12 +217,12 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
     res.status(500).json({ message: error.message });
   }
 };
+
 // @desc    Get all students for a specific college
 // @route   GET /api/auth/students/:collegeId
 export const getStudentsByCollege = async (req: Request, res: Response): Promise<void> => {
   const { collegeId } = req.params;
   try {
-    // Find users who have this collegeId AND are students
     const students = await User.find({ collegeId, role: 'student' }).select('-password');
     res.json(students);
   } catch (error: any) {
@@ -243,6 +240,7 @@ export const deleteStudent = async (req: Request, res: Response): Promise<void> 
         res.status(500).json({ message: error.message });
     }
 }
+
 // @desc    Add a College Staff Member
 // @route   POST /api/auth/add-staff
 export const addCollegeStaff = async (req: Request, res: Response): Promise<void> => {
@@ -258,9 +256,9 @@ export const addCollegeStaff = async (req: Request, res: Response): Promise<void
     const user = await User.create({
       name,
       email,
-      password: 'staff123', // Default password
+      password: 'staff123',
       role: 'college_member',
-      collegeId, // Links them to the main college
+      collegeId,
       isFirstLogin: true
     });
 
@@ -274,7 +272,6 @@ export const addCollegeStaff = async (req: Request, res: Response): Promise<void
 // @route   GET /api/auth/team/:collegeId
 export const getTeamMembers = async (req: Request, res: Response): Promise<void> => {
     try {
-        // Find users who are 'college_member' and linked to this college
         const team = await User.find({ 
             collegeId: req.params.collegeId, 
             role: 'college_member' 
