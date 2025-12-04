@@ -4,7 +4,9 @@ import {
     loginUser, 
     addStudentByCollege, 
     changePassword, 
-    addStudentsBulk 
+    addStudentsBulk ,
+    getStudentsByCollege,
+    deleteStudent
 } from '../controllers/authController';
 import User from '../models/User';
 import { updateUserProfile } from '../controllers/authController'; // <--- Import this
@@ -12,7 +14,8 @@ import { updateUserProfile } from '../controllers/authController'; // <--- Impor
 // ... existing routes ...
 // <--- Add this line
 const router = express.Router();
-
+router.get('/students/:collegeId', getStudentsByCollege);
+router.delete('/student/:id', deleteStudent);
 router.put('/update-profile', updateUserProfile); 
 // --- PUBLIC AUTH ROUTES ---
 router.post('/register', registerUser);

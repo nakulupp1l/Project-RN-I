@@ -215,3 +215,26 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
     res.status(500).json({ message: error.message });
   }
 };
+// @desc    Get all students for a specific college
+// @route   GET /api/auth/students/:collegeId
+export const getStudentsByCollege = async (req: Request, res: Response): Promise<void> => {
+  const { collegeId } = req.params;
+  try {
+    // Find users who have this collegeId AND are students
+    const students = await User.find({ collegeId, role: 'student' }).select('-password');
+    res.json(students);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete a student
+// @route   DELETE /api/auth/student/:id
+export const deleteStudent = async (req: Request, res: Response): Promise<void> => {
+    try {
+        await User.findByIdAndDelete(req.params.id);
+        res.json({ message: "Student removed" });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+}
