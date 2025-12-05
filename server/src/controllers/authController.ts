@@ -92,10 +92,11 @@ export const addStudentByCollege = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Create User with DEFAULT PASSWORD 'welcome123'
     const user = await User.create({
       name,
       email,
-      password: 'welcome123',
+      password: 'welcome123', // Default Password
       role: 'student',
       collegeId,
       isFirstLogin: true,
@@ -122,7 +123,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         }
         
         user.password = newPassword;
-        user.isFirstLogin = false;
+        user.isFirstLogin = false; // Mark as active
         await user.save();
         
         res.json({ message: "Password updated successfully. Please login." });
@@ -207,8 +208,7 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
         cgpa: updatedUser.cgpa,
         phone: updatedUser.phone,
         skills: updatedUser.skills,
-        collegeId: updatedUser.role === 'college' ? updatedUser._id : updatedUser.collegeId,
-        token: req.headers.authorization?.split(" ")[1] 
+        token: req.headers.authorization?.split(" ")[1] // Keep existing token
       });
     } else {
       res.status(404).json({ message: 'User not found' });
