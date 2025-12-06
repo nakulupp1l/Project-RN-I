@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import User, { IUser } from '../models/User';
+import User from '../models/User';
 import jwt from 'jsonwebtoken';
 
 const generateToken = (id: string) => {
@@ -8,26 +8,25 @@ const generateToken = (id: string) => {
   });
 };
 
-// @desc    Register a new user (Self Registration)
+// @desc    Register a new user
 // @route   POST /api/auth/register
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
   const { name, email, password, role, collegeId } = req.body;
 
   try {
     const userExists = await User.findOne({ email });
-
     if (userExists) {
       res.status(400).json({ message: 'User already exists' });
       return;
     }
 
-    // FIX 1: Handle Empty College ID (Prevents CastError)
+    // FIX: Only add collegeId if it is a REAL string (not empty)
     const userData: any = { name, email, password, role };
     if (collegeId && typeof collegeId === 'string' && collegeId.trim() !== "") {
         userData.collegeId = collegeId;
     }
 
-    // FIX 2: Use new User() + save() (Prevents TypeScript Array Error)
+    // Use new User().save() to avoid TypeScript errors
     const user = new User(userData);
     await user.save();
 
@@ -43,10 +42,10 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       res.status(400).json({ message: 'Invalid user data' });
     }
   } catch (error: any) {
+    console.error("Registration Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
-
 // @desc    Login user
 // @route   POST /api/auth/login
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
@@ -57,6 +56,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
 
     if (user && (await user.matchPassword(password))) {
       // Determine which College Dashboard to load
+      // If Admin: use their own ID. If Staff: use the ID of the college they belong to.
       const targetCollegeId = user.role === 'college' ? user._id : user.collegeId;
 
       res.json({
@@ -208,7 +208,8 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
         cgpa: updatedUser.cgpa,
         phone: updatedUser.phone,
         skills: updatedUser.skills,
-        token: req.headers.authorization?.split(" ")[1] // Keep existing token
+        collegeId: updatedUser.role === 'college' ? updatedUser._id : updatedUser.collegeId,
+        token: req.headers.authorization?.split(" ")[1] 
       });
     } else {
       res.status(404).json({ message: 'User not found' });
