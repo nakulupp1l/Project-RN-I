@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import User from '../models/User';
+import User, { IUser } from '../models/User'; // Import IUser interface
 import jwt from 'jsonwebtoken';
 
 const generateToken = (id: string) => {
@@ -8,25 +8,33 @@ const generateToken = (id: string) => {
   });
 };
 
-// @desc    Register a new user
+// @desc    Register a new user (Self Registration)
 // @route   POST /api/auth/register
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
   const { name, email, password, role, collegeId } = req.body;
 
   try {
     const userExists = await User.findOne({ email });
+
     if (userExists) {
       res.status(400).json({ message: 'User already exists' });
       return;
     }
 
-    // FIX: Only add collegeId if it is a REAL string (not empty)
-    const userData: any = { name, email, password, role };
+    // Explicitly define the object structure to help TypeScript
+    const userData: Partial<IUser> = {
+      name,
+      email,
+      password,
+      role
+    };
+
+    // Only add collegeId if it's a valid non-empty string
     if (collegeId && typeof collegeId === 'string' && collegeId.trim() !== "") {
-        userData.collegeId = collegeId;
+        userData.collegeId = collegeId as any; // Cast as any to bypass strict ObjectId checks if string format is valid
     }
 
-    // Use new User().save() to avoid TypeScript errors
+    // Use new User() + save() pattern
     const user = new User(userData);
     await user.save();
 
@@ -46,6 +54,10 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({ message: error.message });
   }
 };
+
+// ... (Rest of the file remains exactly the same as provided before) ...
+// (Include loginUser, addStudentByCollege, changePassword, etc. here)
+
 // @desc    Login user
 // @route   POST /api/auth/login
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
@@ -55,8 +67,6 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
-      // Determine which College Dashboard to load
-      // If Admin: use their own ID. If Staff: use the ID of the college they belong to.
       const targetCollegeId = user.role === 'college' ? user._id : user.collegeId;
 
       res.json({
@@ -80,8 +90,8 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// @desc    College adds a student manually
-// @route   POST /api/auth/add-student
+// ... (Paste the rest of the functions: addStudentByCollege, changePassword, addStudentsBulk, updateUserProfile, getStudentsByCollege, deleteStudent, addCollegeStaff, getTeamMembers from previous response) ...
+
 export const addStudentByCollege = async (req: Request, res: Response): Promise<void> => {
   const { name, email, branch, cgpa, phone, collegeId } = req.body;
 
@@ -92,11 +102,10 @@ export const addStudentByCollege = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Create User with DEFAULT PASSWORD 'welcome123'
     const user = await User.create({
       name,
       email,
-      password: 'welcome123', // Default Password
+      password: 'welcome123',
       role: 'student',
       collegeId,
       isFirstLogin: true,
@@ -111,8 +120,6 @@ export const addStudentByCollege = async (req: Request, res: Response): Promise<
   }
 };
 
-// @desc    Change Password (for First Time Login)
-// @route   PUT /api/auth/change-password
 export const changePassword = async (req: Request, res: Response): Promise<void> => {
     const { email, newPassword } = req.body;
     try {
@@ -123,7 +130,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         }
         
         user.password = newPassword;
-        user.isFirstLogin = false; // Mark as active
+        user.isFirstLogin = false;
         await user.save();
         
         res.json({ message: "Password updated successfully. Please login." });
@@ -132,8 +139,6 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     }
 }
 
-// @desc    Bulk Add Students via Excel
-// @route   POST /api/auth/add-students-bulk
 export const addStudentsBulk = async (req: Request, res: Response): Promise<void> => {
   const { students, collegeId } = req.body;
 
@@ -182,8 +187,6 @@ export const addStudentsBulk = async (req: Request, res: Response): Promise<void
   }
 };
 
-// @desc    Update User Profile
-// @route   PUT /api/auth/update-profile
 export const updateUserProfile = async (req: Request, res: Response): Promise<void> => {
   const { email, name, phone, branch, cgpa, skills } = req.body;
 
@@ -219,8 +222,6 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
   }
 };
 
-// @desc    Get all students for a specific college
-// @route   GET /api/auth/students/:collegeId
 export const getStudentsByCollege = async (req: Request, res: Response): Promise<void> => {
   const { collegeId } = req.params;
   try {
@@ -231,8 +232,6 @@ export const getStudentsByCollege = async (req: Request, res: Response): Promise
   }
 };
 
-// @desc    Delete a student
-// @route   DELETE /api/auth/student/:id
 export const deleteStudent = async (req: Request, res: Response): Promise<void> => {
     try {
         await User.findByIdAndDelete(req.params.id);
@@ -242,8 +241,6 @@ export const deleteStudent = async (req: Request, res: Response): Promise<void> 
     }
 }
 
-// @desc    Add a College Staff Member
-// @route   POST /api/auth/add-staff
 export const addCollegeStaff = async (req: Request, res: Response): Promise<void> => {
   const { name, email, collegeId } = req.body;
 
@@ -269,8 +266,6 @@ export const addCollegeStaff = async (req: Request, res: Response): Promise<void
   }
 };
 
-// @desc    Get Team Members
-// @route   GET /api/auth/team/:collegeId
 export const getTeamMembers = async (req: Request, res: Response): Promise<void> => {
     try {
         const team = await User.find({ 
